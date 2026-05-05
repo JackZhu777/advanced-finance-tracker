@@ -1,0 +1,13 @@
+{
+  "name": "advanced-finance-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test --experimental-test-isolation=none",
+    "test:coverage": "c8 --reporter=text --reporter=lcov --reporter=html node --test --experimental-test-isolation=none"
+  },
+  "devDependencies": {
+    "c8": "^11.0.0"
+  }
+}
