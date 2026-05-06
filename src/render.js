@@ -1,4 +1,5 @@
 import { formatCurrency, formatDisplayDate } from "./formatters.js";
+import { escapeHtml } from "./sanitize.js";
 import {
   applyFilters,
   calculateTotals,
@@ -36,15 +37,15 @@ export const renderTransactionList = (dom, state) => {
   const groupedTransactions = groupTransactionsByMonth(filteredTransactions);
 
   dom.transactionsList.innerHTML = groupedTransactions
-    .map(
-      (group) => `
-        <div class="month-group">
-          <p class="month-title">${group.label}</p>
-          ${group.items.map(renderTransactionCard).join("")}
-        </div>
-      `,
-    )
-    .join("");
+  .map(
+    (group) => `
+      <div class="month-group">
+        <p class="month-title">${escapeHtml(group.label)}</p>
+        ${group.items.map(renderTransactionCard).join("")}
+      </div>
+    `,
+  )
+  .join("");
 };
 
 export const renderChart = (canvas, transactions) => {
@@ -105,16 +106,16 @@ const renderTransactionCard = (transaction) => {
   return `
     <div class="transaction">
       <div>
-        <p class="transaction__title">${transaction.title}</p>
+        <p class="transaction__title">${escapeHtml(transaction.title)}</p>
         <div class="transaction__meta">
-          <span class="badge">${transaction.category}</span>
-          <span>${formatDisplayDate(transaction.date)}</span>
+          <span class="badge">${escapeHtml(transaction.category)}</span>
+          <span>${escapeHtml(formatDisplayDate(transaction.date))}</span>
         </div>
       </div>
       <div>
-        <p class="amount ${amountClass}">${formatCurrency(transaction.amount)}</p>
-        <button class="edit-btn" data-id="${transaction.id}">Edit</button>
-        <button class="delete-btn" data-id="${transaction.id}">Delete</button>
+        <p class="amount ${amountClass}">${escapeHtml(formatCurrency(transaction.amount))}</p>
+        <button class="edit-btn" data-id="${escapeHtml(transaction.id)}">Edit</button>
+        <button class="delete-btn" data-id="${escapeHtml(transaction.id)}">Delete</button>
       </div>
     </div>
   `;

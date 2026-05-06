@@ -5,8 +5,10 @@ import {
 } from "./feedback.js";
 import { renderDashboard } from "./render.js";
 import {
+  loadCookieConsentFromStorage,
   loadThemeFromStorage,
   loadTransactionsFromStorage,
+  saveCookieConsentToStorage,
   saveThemeToStorage,
   saveTransactionsToStorage,
 } from "./storage.js";
@@ -22,6 +24,7 @@ import {
 
 const STORAGE_KEY = "financeTrackerData";
 const THEME_KEY = "financeTrackerTheme";
+const COOKIE_CONSENT_KEY = "financeTrackerCookieConsent";
 
 const state = createInitialState();
 
@@ -29,6 +32,7 @@ export const initializeApp = () => {
   const dom = getDomReferences();
   hydrateState(dom);
   renderDashboard(dom, state);
+  renderCookieBanner(dom);
   attachEventHandlers(dom);
 
   setTimeout(() => {
@@ -66,6 +70,9 @@ const getDomReferences = () => {
     cancelDeleteBtn: document.getElementById("cancelDeleteBtn"),
     toastContainer: document.getElementById("toastContainer"),
     skeleton: document.getElementById("skeleton"),
+    cookieBanner: document.getElementById("cookieBanner"),
+    acceptCookiesBtn: document.getElementById("acceptCookiesBtn"),
+    rejectCookiesBtn: document.getElementById("rejectCookiesBtn"),
   };
 };
 
@@ -146,6 +153,14 @@ const attachEventHandlers = (dom) => {
       closeDeleteModal(dom);
     }
   });
+
+  dom.acceptCookiesBtn?.addEventListener("click", () => {
+    handleCookieConsent(dom, "accepted");
+  });
+
+  dom.rejectCookiesBtn?.addEventListener("click", () => {
+    handleCookieConsent(dom, "rejected");
+  });
 };
 
 const submitTransactionForm = (dom) => {
@@ -171,7 +186,7 @@ const submitTransactionForm = (dom) => {
   );
 
   resetForm(dom);
-  persistTransactions();
+  persistTransactions(dom);
   renderDashboard(dom, state);
   createToast(
     dom.toastContainer,
@@ -247,7 +262,7 @@ const confirmDeletion = (dom) => {
     state.pendingDeleteId,
   );
 
-  persistTransactions();
+  persistTransactions(dom);
   renderDashboard(dom, state);
   closeDeleteModal(dom);
   createToast(dom.toastContainer, "Transaction deleted.");
@@ -279,9 +294,65 @@ const applyTheme = (dom, theme) => {
   document.body.classList.toggle("theme-light", theme === "light");
   dom.themeToggleBtn.textContent =
     theme === "light" ? "Dark Mode" : "Light Mode";
-  saveThemeToStorage(window.localStorage, THEME_KEY, theme);
+  const saved = saveThemeToStorage(window.localStorage, THEME_KEY, theme);
+
+  if (!saved) {
+    createToast(
+      dom.toastContainer,
+      "Theme changed, but the preference could not be saved.",
+      "error",
+    );
+  }
+
 };
 
-const persistTransactions = () => {
-  saveTransactionsToStorage(window.localStorage, STORAGE_KEY, state.transactions);
+const persistTransactions = (dom) => {
+  const saved = saveTransactionsToStorage(
+    window.localStorage,
+    STORAGE_KEY,
+    state.transactions,
+  );
+
+  if (!saved) {
+    createToast(
+      dom.toastContainer,
+      "Changes were made, but could not be saved locally.",
+      "error",
+    );
+  }
+
+  return saved;
+};
+
+const renderCookieBanner = (dom) => {
+  const consent = loadCookieConsentFromStorage(
+    window.localStorage,
+    COOKIE_CONSENT_KEY,
+  );
+
+  if (!dom.cookieBanner) {
+    return;
+  }
+
+  dom.cookieBanner.hidden = Boolean(consent);
+};
+
+const handleCookieConsent = (dom, consent) => {
+  const saved = saveCookieConsentToStorage(
+    window.localStorage,
+    COOKIE_CONSENT_KEY,
+    consent,
+  );
+
+  if (dom.cookieBanner) {
+    dom.cookieBanner.hidden = true;
+  }
+
+  createToast(
+    dom.toastContainer,
+    saved
+      ? "Cookie preference saved."
+      : "Cookie preference could not be saved locally.",
+    saved ? "success" : "error",
+  );
 };
