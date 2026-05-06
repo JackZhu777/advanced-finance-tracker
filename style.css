@@ -549,3 +549,108 @@ body.theme-light .bg-gradient {
     text-align: left;
   }
 }
+
+/* Cookie banner and privacy policy */
+
+.cookie-banner {
+  position: fixed;
+  left: 24px;
+  right: 24px;
+  bottom: 24px;
+  z-index: 90;
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: rgba(15, 23, 42, 0.96);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(12px);
+}
+
+.cookie-banner[hidden] {
+  display: none;
+}
+
+.cookie-banner strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.cookie-banner p {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.cookie-banner a {
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.cookie-banner__actions {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.privacy-page {
+  min-height: 100vh;
+  max-width: 900px;
+  margin: 0 auto;
+  display: grid;
+  align-items: start;
+}
+
+.privacy-card {
+  display: grid;
+  gap: 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 28px;
+  backdrop-filter: blur(12px);
+}
+
+.privacy-card h1 {
+  font-size: clamp(28px, 4vw, 40px);
+}
+
+.privacy-card h2 {
+  margin-top: 10px;
+  font-size: 18px;
+}
+
+.privacy-card p {
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.privacy-card a {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+body.theme-light .cookie-banner {
+  background: rgba(248, 250, 252, 0.96);
+}
+
+@media (max-width: 700px) {
+  .cookie-banner {
+    left: 18px;
+    right: 18px;
+    bottom: 18px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .cookie-banner__actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
