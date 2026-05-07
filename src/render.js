@@ -1,4 +1,5 @@
 import { formatCurrency, formatDisplayDate } from "./formatters.js";
+import { escapeHtml } from "./sanitize.js";
 import {
   applyFilters,
   calculateTotals,
@@ -48,8 +49,8 @@ export const renderTransactionList = (dom, state, i18n = defaultI18n) => {
     dom.transactionsList.innerHTML = `
       <div class="transactions__empty">
         <div class="empty__icon">+</div>
-        <p>${i18n.t("transactions.empty")}</p>
-        <button class="btn btn--accent empty-add-btn" type="button">${i18n.t("transactions.addFirst")}</button>
+        <p>${escapeHtml(i18n.t("transactions.empty"))}</p>
+        <button class="btn btn--accent empty-add-btn" type="button">${escapeHtml(i18n.t("transactions.addFirst"))}</button>
       </div>
     `;
     return;
@@ -64,7 +65,7 @@ export const renderTransactionList = (dom, state, i18n = defaultI18n) => {
     .map(
       (group) => `
         <div class="month-group">
-          <p class="month-title">${group.label}</p>
+          <p class="month-title">${escapeHtml(group.label)}</p>
           ${group.items.map((item) => renderTransactionCard(item, i18n)).join("")}
         </div>
       `,
@@ -78,6 +79,11 @@ export const renderChart = (canvas, transactions, i18n = defaultI18n) => {
   }
 
   const context = canvas.getContext("2d");
+  const styles = getComputedStyle(canvas);
+  const chartTextColor =
+    styles.getPropertyValue("--chart-text").trim() || "#f8f4e9";
+  const chartGridColor =
+    styles.getPropertyValue("--chart-grid").trim() || "rgba(255,255,255,0.08)";
   const devicePixelRatio = window.devicePixelRatio || 1;
   const width = canvas.clientWidth;
   const height = 260;
@@ -94,7 +100,7 @@ export const renderChart = (canvas, transactions, i18n = defaultI18n) => {
   context.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
   context.clearRect(0, 0, width, height);
 
-  context.strokeStyle = "rgba(255,255,255,0.08)";
+  context.strokeStyle = chartGridColor;
   context.beginPath();
   context.moveTo(40, baseY);
   context.lineTo(width - 40, baseY);
@@ -111,7 +117,7 @@ export const renderChart = (canvas, transactions, i18n = defaultI18n) => {
     expenseHeight,
   );
 
-  context.fillStyle = "#f8f4e9";
+  context.fillStyle = chartTextColor;
   context.font = "14px sans-serif";
   context.fillText(i18n.t("filters.income"), 170, baseY + 20);
   context.fillText(i18n.t("filters.expense"), 160 + barWidth + gap, baseY + 20);
@@ -134,16 +140,16 @@ const renderTransactionCard = (transaction, i18n) => {
   return `
     <div class="transaction">
       <div>
-        <p class="transaction__title">${transaction.title}</p>
+        <p class="transaction__title">${escapeHtml(transaction.title)}</p>
         <div class="transaction__meta">
-          <span class="badge">${i18n.translateCategory(transaction.category)}</span>
-          <span>${formatDisplayDate(transaction.date, i18n.locale)}</span>
+          <span class="badge">${escapeHtml(i18n.translateCategory(transaction.category))}</span>
+          <span>${escapeHtml(formatDisplayDate(transaction.date, i18n.locale))}</span>
         </div>
       </div>
       <div>
-        <p class="amount ${amountClass}">${formatCurrency(transaction.amount, i18n.locale)}</p>
-        <button class="edit-btn" data-id="${transaction.id}">${i18n.t("transactions.edit")}</button>
-        <button class="delete-btn" data-id="${transaction.id}">${i18n.t("transactions.delete")}</button>
+        <p class="amount ${amountClass}">${escapeHtml(formatCurrency(transaction.amount, i18n.locale))}</p>
+        <button class="edit-btn" data-id="${escapeHtml(transaction.id)}">${escapeHtml(i18n.t("transactions.edit"))}</button>
+        <button class="delete-btn" data-id="${escapeHtml(transaction.id)}">${escapeHtml(i18n.t("transactions.delete"))}</button>
       </div>
     </div>
   `;

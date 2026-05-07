@@ -1,8 +1,20 @@
 :root {
   --bg: #0f172a;
   --bg-accent: #111827;
+  --bg-spot-1: #1e293b;
+  --bg-spot-2: #0ea5e9;
+  --bg-spot-3: #7c3aed;
   --card: rgba(255, 255, 255, 0.08);
   --card-strong: rgba(255, 255, 255, 0.14);
+  --field-bg: rgba(255, 255, 255, 0.16);
+  --placeholder: rgba(226, 232, 240, 0.72);
+  --option-bg: #f8fafc;
+  --option-text: #0f172a;
+  --chart-text: #f8f4e9;
+  --chart-grid: rgba(255, 255, 255, 0.08);
+  --toast-bg: rgba(15, 23, 42, 0.92);
+  --toast-text: #f8fafc;
+  --toast-border: rgba(255, 255, 255, 0.14);
   --text: #f8fafc;
   --muted: #cbd5f5;
   --border: rgba(255, 255, 255, 0.12);
@@ -26,9 +38,9 @@ body {
   font-family: var(--font);
   color: var(--text);
   background:
-    radial-gradient(circle at 20% 20%, #1e293b, transparent 55%),
-    radial-gradient(circle at 80% 10%, #0ea5e9, transparent 35%),
-    radial-gradient(circle at 80% 85%, #7c3aed, transparent 40%), var(--bg);
+    radial-gradient(circle at 20% 20%, var(--bg-spot-1), transparent 55%),
+    radial-gradient(circle at 80% 10%, var(--bg-spot-2), transparent 35%),
+    radial-gradient(circle at 80% 85%, var(--bg-spot-3), transparent 40%), var(--bg);
   padding: 32px;
 }
 
@@ -128,6 +140,18 @@ body {
   margin-bottom: 16px;
 }
 
+.section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.section-header .section-title {
+  margin-bottom: 0;
+}
+
 .form__grid,
 .filters__grid {
   display: grid;
@@ -151,12 +175,27 @@ body {
   padding: 12px 14px;
   border-radius: 12px;
   border: 1px solid transparent;
-  background: var(--card-strong);
+  background: var(--field-bg);
   color: var(--text);
   font-size: 14px;
   transition:
     border 0.2s ease,
+    box-shadow 0.2s ease,
     transform 0.2s ease;
+}
+
+.form__field input::placeholder {
+  color: var(--placeholder);
+  opacity: 1;
+}
+
+.form__field select option {
+  background: var(--option-bg);
+  color: var(--option-text);
+}
+
+.form__field select option:disabled {
+  color: #64748b;
 }
 
 .form__field input:focus,
@@ -166,8 +205,38 @@ body {
   transform: translateY(-1px);
 }
 
+.form__field input.is-reset-highlight,
+.form__field select.is-reset-highlight {
+  border-color: rgba(56, 189, 248, 0.7);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.14);
+}
+
 .form__field--full {
   grid-column: 1 / -1;
+}
+
+.amount-hint {
+  min-height: 16px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
+}
+
+.amount-hint--income {
+  color: rgba(34, 197, 94, 0.82);
+}
+
+.amount-hint--expense {
+  color: rgba(244, 63, 94, 0.82);
+}
+
+.amount-hint--error {
+  color: rgba(249, 115, 22, 0.9);
+}
+
+.amount-hint--neutral {
+  color: var(--muted);
 }
 
 .btn {
@@ -191,6 +260,18 @@ body {
   background: transparent;
   border: 1px solid var(--border);
   color: var(--text);
+}
+
+.btn--small {
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.btn--filter-reset {
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 14px;
 }
 
 .btn:hover {
@@ -430,11 +511,11 @@ body {
 }
 
 .toast {
-  background: rgba(15, 23, 42, 0.9);
-  border: 1px solid var(--border);
+  background: var(--toast-bg);
+  border: 1px solid var(--toast-border);
   padding: 12px 16px;
   border-radius: 12px;
-  color: var(--text);
+  color: var(--toast-text);
   font-size: 14px;
   box-shadow: var(--shadow);
   animation: toast-in 0.2s ease;
@@ -504,10 +585,22 @@ body {
 body.theme-light {
   --bg: #f8fafc;
   --bg-accent: #e2e8f0;
-  --card: rgba(15, 23, 42, 0.04);
-  --card-strong: rgba(15, 23, 42, 0.08);
+  --bg-spot-1: #e0f2fe;
+  --bg-spot-2: #bae6fd;
+  --bg-spot-3: #ddd6fe;
+  --card: rgba(255, 255, 255, 0.58);
+  --card-strong: rgba(255, 255, 255, 0.72);
+  --field-bg: rgba(15, 23, 42, 0.1);
+  --placeholder: rgba(51, 65, 85, 0.78);
+  --option-bg: #ffffff;
+  --option-text: #0f172a;
+  --chart-text: #1e293b;
+  --chart-grid: rgba(15, 23, 42, 0.12);
+  --toast-bg: rgba(255, 255, 255, 0.96);
+  --toast-text: #0f172a;
+  --toast-border: rgba(15, 23, 42, 0.12);
   --text: #0f172a;
-  --muted: #475569;
+  --muted: #334155;
   --border: rgba(15, 23, 42, 0.1);
   --primary: #1d4ed8;
   --shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
@@ -516,9 +609,14 @@ body.theme-light {
 body.theme-light .bg-gradient {
   background: linear-gradient(
     135deg,
-    rgba(15, 23, 42, 0.06),
-    rgba(29, 78, 216, 0.08)
+    rgba(255, 255, 255, 0.32),
+    rgba(29, 78, 216, 0.05)
   );
+}
+
+body.theme-light #financeChart {
+  background: rgba(255, 255, 255, 0.58);
+  border-color: rgba(15, 23, 42, 0.1);
 }
 
 @media (max-width: 900px) {
@@ -547,5 +645,110 @@ body.theme-light .bg-gradient {
 
   .amount {
     text-align: left;
+  }
+}
+
+/* Cookie banner and privacy policy */
+
+.cookie-banner {
+  position: fixed;
+  left: 24px;
+  right: 24px;
+  bottom: 24px;
+  z-index: 90;
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: rgba(15, 23, 42, 0.96);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(12px);
+}
+
+.cookie-banner[hidden] {
+  display: none;
+}
+
+.cookie-banner strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.cookie-banner p {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.cookie-banner a {
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.cookie-banner__actions {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.privacy-page {
+  min-height: 100vh;
+  max-width: 900px;
+  margin: 0 auto;
+  display: grid;
+  align-items: start;
+}
+
+.privacy-card {
+  display: grid;
+  gap: 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 28px;
+  backdrop-filter: blur(12px);
+}
+
+.privacy-card h1 {
+  font-size: clamp(28px, 4vw, 40px);
+}
+
+.privacy-card h2 {
+  margin-top: 10px;
+  font-size: 18px;
+}
+
+.privacy-card p {
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.privacy-card a {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+body.theme-light .cookie-banner {
+  background: rgba(248, 250, 252, 0.96);
+}
+
+@media (max-width: 700px) {
+  .cookie-banner {
+    left: 18px;
+    right: 18px;
+    bottom: 18px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .cookie-banner__actions {
+    width: 100%;
+    justify-content: flex-end;
   }
 }

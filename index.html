@@ -40,9 +40,6 @@
           <button class="btn btn--accent" id="exportCsvBtn" type="button" data-i18n="action.exportCsv">
             Export CSV
           </button>
-          <button class="btn btn--ghost" id="resetFiltersBtn" type="button" data-i18n="action.resetFilters">
-            Reset Filters
-          </button>
         </div>
       </header>
 
@@ -98,7 +95,9 @@
                 data-i18n-placeholder="form.amountPlaceholder"
                 required
               />
-              <small class="error" id="amountError"></small>
+              <small class="amount-hint amount-hint--neutral" id="amountTypeHint" data-i18n="form.amountHint">
+                Positive for income, negative for expense.
+              </small>
             </label>
 
             <label class="form__field">
@@ -143,7 +142,12 @@
         </div>
 
         <div class="card filters">
-          <h3 class="section-title" data-i18n="filters.title">Filters & Search</h3>
+          <div class="section-header">
+            <h3 class="section-title" data-i18n="filters.title">Filters & Search</h3>
+            <button class="btn btn--ghost btn--filter-reset" id="resetFiltersBtn" type="button" data-i18n="action.resetFilters">
+              Reset Filters
+            </button>
+          </div>
           <div class="filters__grid">
             <label class="form__field">
               <span data-i18n="form.category">Category</span>
@@ -224,6 +228,22 @@
     </div>
 
     <div class="toast-container" id="toastContainer"></div>
+
+    <div class="cookie-banner" id="cookieBanner" hidden>
+      <div>
+        <strong data-i18n="cookie.title">Cookie & Privacy Notice</strong>
+        <p>
+          <span data-i18n="cookie.text">
+            We use essential local storage to remember your transactions, theme, and cookie preference. We do not sell or share your data.
+          </span>
+          <a href="privacy.html" data-i18n="cookie.privacyPolicy">Read our Privacy Policy</a>.
+        </p>
+      </div>
+      <div class="cookie-banner__actions">
+        <button class="btn btn--ghost" id="rejectCookiesBtn" type="button" data-i18n="cookie.reject">Reject</button>
+        <button class="btn btn--accent" id="acceptCookiesBtn" type="button" data-i18n="cookie.accept">Accept</button>
+      </div>
+    </div>
 
     <script type="module" src="main.js"></script>
   </body>

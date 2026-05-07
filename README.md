@@ -1,4 +1,5 @@
 # Advanced Finance Tracker
+[![codecov](https://codecov.io/gh/JackZhu777/advanced-finance-tracker/graph/badge.svg?token=2NXH7HLWQ9)](https://codecov.io/gh/JackZhu777/advanced-finance-tracker)
 
 A portfolio-level personal finance management application built with HTML, CSS, and Vanilla JavaScript.  
 This project was intentionally developed without frameworks or third-party libraries to demonstrate a strong understanding of core front-end fundamentals and application architecture.

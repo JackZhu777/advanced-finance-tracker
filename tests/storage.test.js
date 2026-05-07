@@ -2,8 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  loadCookieConsentFromStorage,
   loadThemeFromStorage,
   loadTransactionsFromStorage,
+  safeGetItem,
+  safeSetItem,
+  saveCookieConsentToStorage,
   saveThemeToStorage,
   saveTransactionsToStorage,
 } from "../src/storage.js";
@@ -95,4 +99,45 @@ test("saveThemeToStorage stores the selected theme value", () => {
   saveThemeToStorage(storage, "financeTrackerTheme", "light");
 
   assert.deepEqual(storage.writes, [["financeTrackerTheme", "light"]]);
+});
+
+test("safeGetItem falls back to null when storage access fails", () => {
+  const brokenStorage = {
+    getItem() {
+      throw new Error("Storage is unavailable");
+    },
+  };
+
+  assert.equal(safeGetItem(brokenStorage, "financeTrackerData"), null);
+});
+
+test("safeSetItem returns false when storage writing fails", () => {
+  const brokenStorage = {
+    setItem() {
+      throw new Error("Storage quota exceeded");
+    },
+  };
+
+  assert.equal(safeSetItem(brokenStorage, "financeTrackerData", "[]"), false);
+});
+
+test("loadThemeFromStorage falls back for invalid stored theme values", () => {
+  const storage = createStorageMock({
+    financeTrackerTheme: "banana",
+  });
+
+  assert.equal(loadThemeFromStorage(storage, "financeTrackerTheme", "dark"), "dark");
+});
+
+test("cookie consent storage only accepts valid consent values", () => {
+  const storage = createStorageMock({
+    financeTrackerCookieConsent: "accepted",
+  });
+
+  assert.equal(
+    loadCookieConsentFromStorage(storage, "financeTrackerCookieConsent"),
+    "accepted",
+  );
+  assert.equal(saveCookieConsentToStorage(storage, "financeTrackerCookieConsent", "maybe"), false);
+  assert.equal(saveCookieConsentToStorage(storage, "financeTrackerCookieConsent", "rejected"), true);
 });

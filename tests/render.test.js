@@ -83,24 +83,55 @@ test("renderTransactionList supports translated labels and locale dates", () => 
       filters: { ...DEFAULT_FILTERS },
     },
     {
-      locale: "zh-CN",
+      locale: "en-GB",
       t(key, options = {}) {
         const values = {
-          "transactions.results": `${options.count} 条结果`,
-          "transactions.edit": "编辑",
-          "transactions.delete": "删除",
+          "transactions.results": `${options.count} rendered`,
+          "transactions.edit": "Modify",
+          "transactions.delete": "Remove",
         };
 
         return values[key] || key;
       },
       translateCategory(category) {
-        return category === "Salary" ? "工资" : category;
+        return category === "Salary" ? "Wages" : category;
       },
     },
   );
 
-  assert.equal(dom.resultsCount.textContent, "2 条结果");
-  assert.match(dom.transactionsList.innerHTML, /2026年4月/);
-  assert.match(dom.transactionsList.innerHTML, /工资/);
-  assert.match(dom.transactionsList.innerHTML, /编辑/);
+  assert.equal(dom.resultsCount.textContent, "2 rendered");
+  assert.match(dom.transactionsList.innerHTML, /15 Apr 2026/);
+  assert.match(dom.transactionsList.innerHTML, /Wages/);
+  assert.match(dom.transactionsList.innerHTML, /Modify/);
+});
+
+test("renderTransactionList escapes user-controlled transaction fields", () => {
+  const dom = {
+    resultsCount: { textContent: "" },
+    transactionsList: { innerHTML: "" },
+  };
+
+  renderTransactionList(dom, {
+    transactions: [
+      {
+        id: 'tx_"><script>alert(1)</script>',
+        title: '<img src=x onerror="alert(1)">',
+        amount: 100,
+        category: "<script>alert(2)</script>",
+        date: "2026-04-15",
+      },
+    ],
+    filters: { ...DEFAULT_FILTERS },
+  });
+
+  assert.match(
+    dom.transactionsList.innerHTML,
+    /&lt;img src=x onerror=&quot;alert\(1\)&quot;&gt;/,
+  );
+  assert.match(
+    dom.transactionsList.innerHTML,
+    /&lt;script&gt;alert\(2\)&lt;\/script&gt;/,
+  );
+  assert.doesNotMatch(dom.transactionsList.innerHTML, /<img src=x/);
+  assert.doesNotMatch(dom.transactionsList.innerHTML, /<script>alert/);
 });

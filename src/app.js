@@ -14,8 +14,10 @@ import {
 } from "./i18n.js";
 import { renderDashboard } from "./render.js";
 import {
+  loadCookieConsentFromStorage,
   loadThemeFromStorage,
   loadTransactionsFromStorage,
+  saveCookieConsentToStorage,
   saveThemeToStorage,
   saveTransactionsToStorage,
 } from "./storage.js";
@@ -31,6 +33,7 @@ import {
 
 const STORAGE_KEY = "financeTrackerData";
 const THEME_KEY = "financeTrackerTheme";
+const COOKIE_CONSENT_KEY = "financeTrackerCookieConsent";
 
 const state = createInitialState();
 
@@ -40,6 +43,7 @@ export const initializeApp = async () => {
   const dom = getDomReferences();
   hydrateState(dom);
   refreshUi(dom);
+  renderCookieBanner(dom);
   attachEventHandlers(dom);
 
   setTimeout(() => {
@@ -52,10 +56,10 @@ const getDomReferences = () => {
     form: document.getElementById("transactionForm"),
     titleInput: document.getElementById("titleInput"),
     amountInput: document.getElementById("amountInput"),
+    amountTypeHint: document.getElementById("amountTypeHint"),
     categoryInput: document.getElementById("categoryInput"),
     dateInput: document.getElementById("dateInput"),
     titleError: document.getElementById("titleError"),
-    amountError: document.getElementById("amountError"),
     categoryError: document.getElementById("categoryError"),
     dateError: document.getElementById("dateError"),
     submitBtn: document.getElementById("submitBtn"),
@@ -79,6 +83,9 @@ const getDomReferences = () => {
     cancelDeleteBtn: document.getElementById("cancelDeleteBtn"),
     toastContainer: document.getElementById("toastContainer"),
     skeleton: document.getElementById("skeleton"),
+    cookieBanner: document.getElementById("cookieBanner"),
+    acceptCookiesBtn: document.getElementById("acceptCookiesBtn"),
+    rejectCookiesBtn: document.getElementById("rejectCookiesBtn"),
   };
 };
 
@@ -88,6 +95,8 @@ const hydrateState = (dom) => {
 };
 
 const attachEventHandlers = (dom) => {
+  let resetHighlightTimer = null;
+
   dom.form.addEventListener("submit", (event) => {
     event.preventDefault();
     submitTransactionForm(dom);
@@ -95,6 +104,10 @@ const attachEventHandlers = (dom) => {
 
   dom.cancelEditBtn.addEventListener("click", () => {
     resetForm(dom);
+  });
+
+  dom.amountInput.addEventListener("input", () => {
+    updateAmountTypeHint(dom);
   });
 
   dom.transactionsList.addEventListener("click", (event) => {
@@ -136,6 +149,8 @@ const attachEventHandlers = (dom) => {
     dom.filterType.value = DEFAULT_FILTERS.type;
     dom.searchInput.value = DEFAULT_FILTERS.search;
     renderDashboard(dom, state, getI18nAdapter());
+    resetHighlightTimer = showResetFiltersHighlight(dom, resetHighlightTimer);
+    createToast(dom.toastContainer, t("toast.filtersReset"));
   });
 
   dom.exportCsvBtn.addEventListener("click", () => {
@@ -144,6 +159,7 @@ const attachEventHandlers = (dom) => {
 
   dom.themeToggleBtn.addEventListener("click", () => {
     applyTheme(dom, state.theme === "dark" ? "light" : "dark");
+    refreshUi(dom);
   });
 
   dom.languageToggleBtn.addEventListener("click", async () => {
@@ -165,7 +181,40 @@ const attachEventHandlers = (dom) => {
       closeDeleteModal(dom);
     }
   });
+
+  dom.acceptCookiesBtn?.addEventListener("click", () => {
+    handleCookieConsent(dom, "accepted");
+  });
+
+  dom.rejectCookiesBtn?.addEventListener("click", () => {
+    handleCookieConsent(dom, "rejected");
+  });
 };
+
+const showResetFiltersHighlight = (dom, activeTimer) => {
+  const filterControls = [
+    dom.filterCategory,
+    dom.filterType,
+    dom.searchInput,
+  ];
+
+  if (activeTimer) {
+    window.clearTimeout(activeTimer);
+  }
+
+  filterControls.forEach((control) => {
+    control.classList.remove("is-reset-highlight");
+    void control.offsetWidth;
+    control.classList.add("is-reset-highlight");
+  });
+
+  return window.setTimeout(() => {
+    filterControls.forEach((control) => {
+      control.classList.remove("is-reset-highlight");
+    });
+  }, 700);
+};
+
 
 const submitTransactionForm = (dom) => {
   const rawInput = readForm(dom);
@@ -173,9 +222,11 @@ const submitTransactionForm = (dom) => {
   const fieldMap = getFieldMap(dom);
 
   clearFieldErrors(Object.values(fieldMap));
+  updateAmountTypeHint(dom);
 
   if (!validation.isValid) {
     applyFieldErrors(fieldMap, validation.errors);
+    applyAmountFieldError(dom, validation.errors.amount);
     createToast(dom.toastContainer, t("toast.fixFields"), "error");
     return;
   }
@@ -190,7 +241,7 @@ const submitTransactionForm = (dom) => {
   );
 
   resetForm(dom);
-  persistTransactions();
+  persistTransactions(dom);
   refreshUi(dom);
   createToast(
     dom.toastContainer,
@@ -210,10 +261,19 @@ const readForm = (dom) => {
 const getFieldMap = (dom) => {
   return {
     title: [dom.titleInput, dom.titleError],
-    amount: [dom.amountInput, dom.amountError],
     category: [dom.categoryInput, dom.categoryError],
     date: [dom.dateInput, dom.dateError],
   };
+};
+
+const applyAmountFieldError = (dom, message) => {
+  if (!message) {
+    return;
+  }
+
+  dom.amountInput.classList.add("is-invalid");
+  dom.amountTypeHint.textContent = message;
+  setAmountHintVariant(dom, "error");
 };
 
 const resetForm = (dom) => {
@@ -221,6 +281,7 @@ const resetForm = (dom) => {
   state.editingId = null;
   dom.cancelEditBtn.hidden = true;
   clearFieldErrors(Object.values(getFieldMap(dom)));
+  updateAmountTypeHint(dom);
   refreshUi(dom);
 };
 
@@ -239,6 +300,7 @@ const beginEditing = (dom, id) => {
   state.editingId = id;
   dom.cancelEditBtn.hidden = false;
   dom.titleInput.focus();
+  updateAmountTypeHint(dom);
   refreshUi(dom);
   createToast(dom.toastContainer, t("toast.editing"));
 };
@@ -266,7 +328,7 @@ const confirmDeletion = (dom) => {
     state.pendingDeleteId,
   );
 
-  persistTransactions();
+  persistTransactions(dom);
   refreshUi(dom);
   closeDeleteModal(dom);
   createToast(dom.toastContainer, t("toast.deleted"));
@@ -297,11 +359,33 @@ const applyTheme = (dom, theme) => {
   state.theme = theme;
   document.body.classList.toggle("theme-light", theme === "light");
   updateDynamicLabels(dom);
-  saveThemeToStorage(window.localStorage, THEME_KEY, theme);
+  const saved = saveThemeToStorage(window.localStorage, THEME_KEY, theme);
+
+  if (!saved) {
+    createToast(
+      dom.toastContainer,
+      t("toast.themeSaveFailed"),
+      "error",
+    );
+  }
 };
 
-const persistTransactions = () => {
-  saveTransactionsToStorage(window.localStorage, STORAGE_KEY, state.transactions);
+const persistTransactions = (dom) => {
+  const saved = saveTransactionsToStorage(
+    window.localStorage,
+    STORAGE_KEY,
+    state.transactions,
+  );
+
+  if (!saved) {
+    createToast(
+      dom.toastContainer,
+      t("toast.transactionsSaveFailed"),
+      "error",
+    );
+  }
+
+  return saved;
 };
 
 const refreshUi = (dom) => {
@@ -318,6 +402,45 @@ const updateDynamicLabels = (dom) => {
   dom.submitBtn.textContent = state.editingId
     ? t("form.saveSubmit")
     : t("form.addSubmit");
+  updateAmountTypeHint(dom);
+};
+
+const updateAmountTypeHint = (dom) => {
+  const rawValue = dom.amountInput.value.trim();
+  const amount = Number(rawValue);
+
+  dom.amountInput.classList.remove("is-invalid");
+
+  if (!rawValue) {
+    dom.amountTypeHint.textContent = t("form.amountHint");
+    setAmountHintVariant(dom, "neutral");
+    return;
+  }
+
+  if (!Number.isFinite(amount) || amount === 0) {
+    dom.amountTypeHint.textContent = t("form.amountInvalidHint");
+    setAmountHintVariant(dom, "error");
+    return;
+  }
+
+  if (amount > 0) {
+    dom.amountTypeHint.textContent = t("filters.income");
+    setAmountHintVariant(dom, "income");
+    return;
+  }
+
+  dom.amountTypeHint.textContent = t("filters.expense");
+  setAmountHintVariant(dom, "expense");
+};
+
+const setAmountHintVariant = (dom, variant) => {
+  dom.amountTypeHint.classList.remove(
+    "amount-hint--income",
+    "amount-hint--expense",
+    "amount-hint--error",
+    "amount-hint--neutral",
+  );
+  dom.amountTypeHint.classList.add(`amount-hint--${variant}`);
 };
 
 const getI18nAdapter = () => {
@@ -335,4 +458,35 @@ const getValidationMessages = () => {
     categoryRequired: t("validation.categoryRequired"),
     dateRequired: t("validation.dateRequired"),
   };
+};
+
+const renderCookieBanner = (dom) => {
+  const consent = loadCookieConsentFromStorage(
+    window.localStorage,
+    COOKIE_CONSENT_KEY,
+  );
+
+  if (!dom.cookieBanner) {
+    return;
+  }
+
+  dom.cookieBanner.hidden = Boolean(consent);
+};
+
+const handleCookieConsent = (dom, consent) => {
+  const saved = saveCookieConsentToStorage(
+    window.localStorage,
+    COOKIE_CONSENT_KEY,
+    consent,
+  );
+
+  if (dom.cookieBanner) {
+    dom.cookieBanner.hidden = true;
+  }
+
+  createToast(
+    dom.toastContainer,
+    saved ? t("toast.cookieSaved") : t("toast.cookieSaveFailed"),
+    saved ? "success" : "error",
+  );
 };
