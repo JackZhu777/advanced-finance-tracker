@@ -3,6 +3,15 @@ import {
   clearFieldErrors,
   createToast,
 } from "./feedback.js";
+import {
+  changeLanguage,
+  getCurrentLocale,
+  getNextLanguage,
+  initializeI18n,
+  t,
+  translateCategory,
+  translatePage,
+} from "./i18n.js";
 import { renderDashboard } from "./render.js";
 import {
   loadThemeFromStorage,
@@ -25,10 +34,12 @@ const THEME_KEY = "financeTrackerTheme";
 
 const state = createInitialState();
 
-export const initializeApp = () => {
+export const initializeApp = async () => {
+  await initializeI18n(window.localStorage);
+
   const dom = getDomReferences();
   hydrateState(dom);
-  renderDashboard(dom, state);
+  refreshUi(dom);
   attachEventHandlers(dom);
 
   setTimeout(() => {
@@ -55,6 +66,8 @@ const getDomReferences = () => {
     resetFiltersBtn: document.getElementById("resetFiltersBtn"),
     exportCsvBtn: document.getElementById("exportCsvBtn"),
     themeToggleBtn: document.getElementById("themeToggleBtn"),
+    languageToggleBtn: document.getElementById("languageToggleBtn"),
+    formTitle: document.getElementById("formTitle"),
     transactionsList: document.getElementById("transactionsList"),
     resultsCount: document.getElementById("resultsCount"),
     totalBalance: document.getElementById("totalBalance"),
@@ -104,17 +117,17 @@ const attachEventHandlers = (dom) => {
 
   dom.filterCategory.addEventListener("change", (event) => {
     state.filters.category = event.target.value;
-    renderDashboard(dom, state);
+    renderDashboard(dom, state, getI18nAdapter());
   });
 
   dom.filterType.addEventListener("change", (event) => {
     state.filters.type = event.target.value;
-    renderDashboard(dom, state);
+    renderDashboard(dom, state, getI18nAdapter());
   });
 
   dom.searchInput.addEventListener("input", (event) => {
     state.filters.search = event.target.value;
-    renderDashboard(dom, state);
+    renderDashboard(dom, state, getI18nAdapter());
   });
 
   dom.resetFiltersBtn.addEventListener("click", () => {
@@ -122,7 +135,7 @@ const attachEventHandlers = (dom) => {
     dom.filterCategory.value = DEFAULT_FILTERS.category;
     dom.filterType.value = DEFAULT_FILTERS.type;
     dom.searchInput.value = DEFAULT_FILTERS.search;
-    renderDashboard(dom, state);
+    renderDashboard(dom, state, getI18nAdapter());
   });
 
   dom.exportCsvBtn.addEventListener("click", () => {
@@ -131,6 +144,12 @@ const attachEventHandlers = (dom) => {
 
   dom.themeToggleBtn.addEventListener("click", () => {
     applyTheme(dom, state.theme === "dark" ? "light" : "dark");
+  });
+
+  dom.languageToggleBtn.addEventListener("click", async () => {
+    await changeLanguage(getNextLanguage(), window.localStorage);
+    clearFieldErrors(Object.values(getFieldMap(dom)));
+    refreshUi(dom);
   });
 
   dom.confirmDeleteBtn.addEventListener("click", () => {
@@ -150,14 +169,14 @@ const attachEventHandlers = (dom) => {
 
 const submitTransactionForm = (dom) => {
   const rawInput = readForm(dom);
-  const validation = validateTransactionInput(rawInput);
+  const validation = validateTransactionInput(rawInput, getValidationMessages());
   const fieldMap = getFieldMap(dom);
 
   clearFieldErrors(Object.values(fieldMap));
 
   if (!validation.isValid) {
     applyFieldErrors(fieldMap, validation.errors);
-    createToast(dom.toastContainer, "Please fix the highlighted fields.", "error");
+    createToast(dom.toastContainer, t("toast.fixFields"), "error");
     return;
   }
 
@@ -172,10 +191,10 @@ const submitTransactionForm = (dom) => {
 
   resetForm(dom);
   persistTransactions();
-  renderDashboard(dom, state);
+  refreshUi(dom);
   createToast(
     dom.toastContainer,
-    isEditing ? "Transaction updated." : "Transaction added.",
+    isEditing ? t("toast.updated") : t("toast.added"),
   );
 };
 
@@ -200,9 +219,9 @@ const getFieldMap = (dom) => {
 const resetForm = (dom) => {
   dom.form.reset();
   state.editingId = null;
-  dom.submitBtn.textContent = "Add Transaction";
   dom.cancelEditBtn.hidden = true;
   clearFieldErrors(Object.values(getFieldMap(dom)));
+  refreshUi(dom);
 };
 
 const beginEditing = (dom, id) => {
@@ -218,10 +237,10 @@ const beginEditing = (dom, id) => {
   dom.dateInput.value = transaction.date;
 
   state.editingId = id;
-  dom.submitBtn.textContent = "Save Changes";
   dom.cancelEditBtn.hidden = false;
   dom.titleInput.focus();
-  createToast(dom.toastContainer, "Editing mode enabled.");
+  refreshUi(dom);
+  createToast(dom.toastContainer, t("toast.editing"));
 };
 
 const openDeleteModal = (dom, id) => {
@@ -248,14 +267,14 @@ const confirmDeletion = (dom) => {
   );
 
   persistTransactions();
-  renderDashboard(dom, state);
+  refreshUi(dom);
   closeDeleteModal(dom);
-  createToast(dom.toastContainer, "Transaction deleted.");
+  createToast(dom.toastContainer, t("toast.deleted"));
 };
 
 const exportTransactions = (dom) => {
   if (state.transactions.length === 0) {
-    createToast(dom.toastContainer, "No data to export.", "error");
+    createToast(dom.toastContainer, t("toast.noExportData"), "error");
     return;
   }
 
@@ -271,17 +290,49 @@ const exportTransactions = (dom) => {
   link.remove();
   URL.revokeObjectURL(downloadUrl);
 
-  createToast(dom.toastContainer, "CSV exported.");
+  createToast(dom.toastContainer, t("toast.exported"));
 };
 
 const applyTheme = (dom, theme) => {
   state.theme = theme;
   document.body.classList.toggle("theme-light", theme === "light");
-  dom.themeToggleBtn.textContent =
-    theme === "light" ? "Dark Mode" : "Light Mode";
+  updateDynamicLabels(dom);
   saveThemeToStorage(window.localStorage, THEME_KEY, theme);
 };
 
 const persistTransactions = () => {
   saveTransactionsToStorage(window.localStorage, STORAGE_KEY, state.transactions);
+};
+
+const refreshUi = (dom) => {
+  translatePage();
+  updateDynamicLabels(dom);
+  renderDashboard(dom, state, getI18nAdapter());
+};
+
+const updateDynamicLabels = (dom) => {
+  dom.themeToggleBtn.textContent =
+    state.theme === "light" ? t("action.darkMode") : t("action.lightMode");
+  dom.languageToggleBtn.textContent = t("action.language");
+  dom.formTitle.textContent = state.editingId ? t("form.editTitle") : t("form.addTitle");
+  dom.submitBtn.textContent = state.editingId
+    ? t("form.saveSubmit")
+    : t("form.addSubmit");
+};
+
+const getI18nAdapter = () => {
+  return {
+    t,
+    locale: getCurrentLocale(),
+    translateCategory,
+  };
+};
+
+const getValidationMessages = () => {
+  return {
+    titleRequired: t("validation.titleRequired"),
+    amountInvalid: t("validation.amountInvalid"),
+    categoryRequired: t("validation.categoryRequired"),
+    dateRequired: t("validation.dateRequired"),
+  };
 };

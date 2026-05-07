@@ -5,49 +5,74 @@ import {
   groupTransactionsByMonth,
 } from "./transactions.js";
 
-export const renderDashboard = (dom, state) => {
-  renderSummary(dom, state.transactions);
-  renderTransactionList(dom, state);
-  renderChart(dom.financeChart, state.transactions);
+const defaultI18n = {
+  t(key, options = {}) {
+    const values = {
+      "transactions.results": `${options.count} results`,
+      "transactions.empty": "No transactions yet. Add your first one to get started.",
+      "transactions.addFirst": "Add First Transaction",
+      "transactions.edit": "Edit",
+      "transactions.delete": "Delete",
+      "filters.income": "Income",
+      "filters.expense": "Expense",
+    };
+
+    return values[key] || options.defaultValue || key;
+  },
+  locale: "en-US",
+  translateCategory(category) {
+    return category;
+  },
 };
 
-export const renderSummary = (dom, transactions) => {
+export const renderDashboard = (dom, state, i18n = defaultI18n) => {
+  renderSummary(dom, state.transactions, i18n);
+  renderTransactionList(dom, state, i18n);
+  renderChart(dom.financeChart, state.transactions, i18n);
+};
+
+export const renderSummary = (dom, transactions, i18n = defaultI18n) => {
   const totals = calculateTotals(transactions);
-  dom.totalIncome.textContent = formatCurrency(totals.income);
-  dom.totalExpenses.textContent = formatCurrency(totals.expenses);
-  dom.totalBalance.textContent = formatCurrency(totals.balance);
+  dom.totalIncome.textContent = formatCurrency(totals.income, i18n.locale);
+  dom.totalExpenses.textContent = formatCurrency(totals.expenses, i18n.locale);
+  dom.totalBalance.textContent = formatCurrency(totals.balance, i18n.locale);
 };
 
-export const renderTransactionList = (dom, state) => {
+export const renderTransactionList = (dom, state, i18n = defaultI18n) => {
   const filteredTransactions = applyFilters(state.transactions, state.filters);
-  dom.resultsCount.textContent = `${filteredTransactions.length} results`;
+  dom.resultsCount.textContent = i18n.t("transactions.results", {
+    count: filteredTransactions.length,
+  });
 
   if (filteredTransactions.length === 0) {
     dom.transactionsList.innerHTML = `
       <div class="transactions__empty">
         <div class="empty__icon">+</div>
-        <p>No transactions yet. Add your first one to get started.</p>
-        <button class="btn btn--accent empty-add-btn" type="button">Add First Transaction</button>
+        <p>${i18n.t("transactions.empty")}</p>
+        <button class="btn btn--accent empty-add-btn" type="button">${i18n.t("transactions.addFirst")}</button>
       </div>
     `;
     return;
   }
 
-  const groupedTransactions = groupTransactionsByMonth(filteredTransactions);
+  const groupedTransactions = groupTransactionsByMonth(
+    filteredTransactions,
+    i18n.locale,
+  );
 
   dom.transactionsList.innerHTML = groupedTransactions
     .map(
       (group) => `
         <div class="month-group">
           <p class="month-title">${group.label}</p>
-          ${group.items.map(renderTransactionCard).join("")}
+          ${group.items.map((item) => renderTransactionCard(item, i18n)).join("")}
         </div>
       `,
     )
     .join("");
 };
 
-export const renderChart = (canvas, transactions) => {
+export const renderChart = (canvas, transactions, i18n = defaultI18n) => {
   if (!canvas) {
     return;
   }
@@ -88,17 +113,21 @@ export const renderChart = (canvas, transactions) => {
 
   context.fillStyle = "#f8f4e9";
   context.font = "14px sans-serif";
-  context.fillText("Income", 170, baseY + 20);
-  context.fillText("Expense", 160 + barWidth + gap, baseY + 20);
-  context.fillText(formatCurrency(totals.income), 150, baseY - incomeHeight - 10);
+  context.fillText(i18n.t("filters.income"), 170, baseY + 20);
+  context.fillText(i18n.t("filters.expense"), 160 + barWidth + gap, baseY + 20);
   context.fillText(
-    formatCurrency(totals.expenses),
+    formatCurrency(totals.income, i18n.locale),
+    150,
+    baseY - incomeHeight - 10,
+  );
+  context.fillText(
+    formatCurrency(totals.expenses, i18n.locale),
     150 + barWidth + gap,
     baseY - expenseHeight - 10,
   );
 };
 
-const renderTransactionCard = (transaction) => {
+const renderTransactionCard = (transaction, i18n) => {
   const amountClass =
     transaction.amount >= 0 ? "amount--income" : "amount--expense";
 
@@ -107,14 +136,14 @@ const renderTransactionCard = (transaction) => {
       <div>
         <p class="transaction__title">${transaction.title}</p>
         <div class="transaction__meta">
-          <span class="badge">${transaction.category}</span>
-          <span>${formatDisplayDate(transaction.date)}</span>
+          <span class="badge">${i18n.translateCategory(transaction.category)}</span>
+          <span>${formatDisplayDate(transaction.date, i18n.locale)}</span>
         </div>
       </div>
       <div>
-        <p class="amount ${amountClass}">${formatCurrency(transaction.amount)}</p>
-        <button class="edit-btn" data-id="${transaction.id}">Edit</button>
-        <button class="delete-btn" data-id="${transaction.id}">Delete</button>
+        <p class="amount ${amountClass}">${formatCurrency(transaction.amount, i18n.locale)}</p>
+        <button class="edit-btn" data-id="${transaction.id}">${i18n.t("transactions.edit")}</button>
+        <button class="delete-btn" data-id="${transaction.id}">${i18n.t("transactions.delete")}</button>
       </div>
     </div>
   `;

@@ -69,3 +69,38 @@ test("renderTransactionList renders grouped transaction markup for matches", () 
   assert.match(dom.transactionsList.innerHTML, /Salary/);
   assert.match(dom.transactionsList.innerHTML, /Rent/);
 });
+
+test("renderTransactionList supports translated labels and locale dates", () => {
+  const dom = {
+    resultsCount: { textContent: "" },
+    transactionsList: { innerHTML: "" },
+  };
+
+  renderTransactionList(
+    dom,
+    {
+      transactions,
+      filters: { ...DEFAULT_FILTERS },
+    },
+    {
+      locale: "zh-CN",
+      t(key, options = {}) {
+        const values = {
+          "transactions.results": `${options.count} 条结果`,
+          "transactions.edit": "编辑",
+          "transactions.delete": "删除",
+        };
+
+        return values[key] || key;
+      },
+      translateCategory(category) {
+        return category === "Salary" ? "工资" : category;
+      },
+    },
+  );
+
+  assert.equal(dom.resultsCount.textContent, "2 条结果");
+  assert.match(dom.transactionsList.innerHTML, /2026年4月/);
+  assert.match(dom.transactionsList.innerHTML, /工资/);
+  assert.match(dom.transactionsList.innerHTML, /编辑/);
+});
