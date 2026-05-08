@@ -14,30 +14,40 @@ export const createInitialState = () => {
   };
 };
 
+const DEFAULT_VALIDATION_MESSAGES = {
+  titleRequired: "Title is required.",
+  amountInvalid: "Enter a valid amount.",
+  categoryRequired: "Select a category.",
+  dateRequired: "Pick a date.",
+};
+
 export const generateTransactionId = () => {
   return `tx_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 };
 
-export const validateTransactionInput = ({ title, amountValue, category, date }) => {
+export const validateTransactionInput = (
+  { title, amountValue, category, date },
+  messages = DEFAULT_VALIDATION_MESSAGES,
+) => {
   const errors = {};
   const trimmedTitle = title.trim();
   const trimmedAmountValue = amountValue.trim();
   const amount = Number(trimmedAmountValue);
 
   if (!trimmedTitle) {
-    errors.title = "Title is required.";
+    errors.title = messages.titleRequired;
   }
 
   if (!trimmedAmountValue || Number.isNaN(amount) || amount === 0) {
-    errors.amount = "Enter a valid amount.";
+    errors.amount = messages.amountInvalid;
   }
 
   if (!category) {
-    errors.category = "Select a category.";
+    errors.category = messages.categoryRequired;
   }
 
   if (!date) {
-    errors.date = "Pick a date.";
+    errors.date = messages.dateRequired;
   }
 
   return {

@@ -3,6 +3,15 @@ import {
   clearFieldErrors,
   createToast,
 } from "./feedback.js";
+import {
+  changeLanguage,
+  getCurrentLocale,
+  getNextLanguage,
+  initializeI18n,
+  t,
+  translateCategory,
+  translatePage,
+} from "./i18n.js";
 import { renderDashboard } from "./render.js";
 import {
   loadCookieConsentFromStorage,
@@ -28,10 +37,12 @@ const COOKIE_CONSENT_KEY = "financeTrackerCookieConsent";
 
 const state = createInitialState();
 
-export const initializeApp = () => {
+export const initializeApp = async () => {
+  await initializeI18n(window.localStorage);
+
   const dom = getDomReferences();
   hydrateState(dom);
-  renderDashboard(dom, state);
+  refreshUi(dom);
   renderCookieBanner(dom);
   attachEventHandlers(dom);
 
@@ -45,10 +56,10 @@ const getDomReferences = () => {
     form: document.getElementById("transactionForm"),
     titleInput: document.getElementById("titleInput"),
     amountInput: document.getElementById("amountInput"),
+    amountTypeHint: document.getElementById("amountTypeHint"),
     categoryInput: document.getElementById("categoryInput"),
     dateInput: document.getElementById("dateInput"),
     titleError: document.getElementById("titleError"),
-    amountError: document.getElementById("amountError"),
     categoryError: document.getElementById("categoryError"),
     dateError: document.getElementById("dateError"),
     submitBtn: document.getElementById("submitBtn"),
@@ -59,6 +70,8 @@ const getDomReferences = () => {
     resetFiltersBtn: document.getElementById("resetFiltersBtn"),
     exportCsvBtn: document.getElementById("exportCsvBtn"),
     themeToggleBtn: document.getElementById("themeToggleBtn"),
+    languageToggleBtn: document.getElementById("languageToggleBtn"),
+    formTitle: document.getElementById("formTitle"),
     transactionsList: document.getElementById("transactionsList"),
     resultsCount: document.getElementById("resultsCount"),
     totalBalance: document.getElementById("totalBalance"),
@@ -82,6 +95,8 @@ const hydrateState = (dom) => {
 };
 
 const attachEventHandlers = (dom) => {
+  let resetHighlightTimer = null;
+
   dom.form.addEventListener("submit", (event) => {
     event.preventDefault();
     submitTransactionForm(dom);
@@ -89,6 +104,10 @@ const attachEventHandlers = (dom) => {
 
   dom.cancelEditBtn.addEventListener("click", () => {
     resetForm(dom);
+  });
+
+  dom.amountInput.addEventListener("input", () => {
+    updateAmountTypeHint(dom);
   });
 
   dom.transactionsList.addEventListener("click", (event) => {
@@ -111,17 +130,17 @@ const attachEventHandlers = (dom) => {
 
   dom.filterCategory.addEventListener("change", (event) => {
     state.filters.category = event.target.value;
-    renderDashboard(dom, state);
+    renderDashboard(dom, state, getI18nAdapter());
   });
 
   dom.filterType.addEventListener("change", (event) => {
     state.filters.type = event.target.value;
-    renderDashboard(dom, state);
+    renderDashboard(dom, state, getI18nAdapter());
   });
 
   dom.searchInput.addEventListener("input", (event) => {
     state.filters.search = event.target.value;
-    renderDashboard(dom, state);
+    renderDashboard(dom, state, getI18nAdapter());
   });
 
   dom.resetFiltersBtn.addEventListener("click", () => {
@@ -129,7 +148,9 @@ const attachEventHandlers = (dom) => {
     dom.filterCategory.value = DEFAULT_FILTERS.category;
     dom.filterType.value = DEFAULT_FILTERS.type;
     dom.searchInput.value = DEFAULT_FILTERS.search;
-    renderDashboard(dom, state);
+    renderDashboard(dom, state, getI18nAdapter());
+    resetHighlightTimer = showResetFiltersHighlight(dom, resetHighlightTimer);
+    createToast(dom.toastContainer, t("toast.filtersReset"));
   });
 
   dom.exportCsvBtn.addEventListener("click", () => {
@@ -138,6 +159,13 @@ const attachEventHandlers = (dom) => {
 
   dom.themeToggleBtn.addEventListener("click", () => {
     applyTheme(dom, state.theme === "dark" ? "light" : "dark");
+    refreshUi(dom);
+  });
+
+  dom.languageToggleBtn.addEventListener("click", async () => {
+    await changeLanguage(getNextLanguage(), window.localStorage);
+    clearFieldErrors(Object.values(getFieldMap(dom)));
+    refreshUi(dom);
   });
 
   dom.confirmDeleteBtn.addEventListener("click", () => {
@@ -163,16 +191,43 @@ const attachEventHandlers = (dom) => {
   });
 };
 
+const showResetFiltersHighlight = (dom, activeTimer) => {
+  const filterControls = [
+    dom.filterCategory,
+    dom.filterType,
+    dom.searchInput,
+  ];
+
+  if (activeTimer) {
+    window.clearTimeout(activeTimer);
+  }
+
+  filterControls.forEach((control) => {
+    control.classList.remove("is-reset-highlight");
+    void control.offsetWidth;
+    control.classList.add("is-reset-highlight");
+  });
+
+  return window.setTimeout(() => {
+    filterControls.forEach((control) => {
+      control.classList.remove("is-reset-highlight");
+    });
+  }, 700);
+};
+
+
 const submitTransactionForm = (dom) => {
   const rawInput = readForm(dom);
-  const validation = validateTransactionInput(rawInput);
+  const validation = validateTransactionInput(rawInput, getValidationMessages());
   const fieldMap = getFieldMap(dom);
 
   clearFieldErrors(Object.values(fieldMap));
+  updateAmountTypeHint(dom);
 
   if (!validation.isValid) {
     applyFieldErrors(fieldMap, validation.errors);
-    createToast(dom.toastContainer, "Please fix the highlighted fields.", "error");
+    applyAmountFieldError(dom, validation.errors.amount);
+    createToast(dom.toastContainer, t("toast.fixFields"), "error");
     return;
   }
 
@@ -187,10 +242,10 @@ const submitTransactionForm = (dom) => {
 
   resetForm(dom);
   persistTransactions(dom);
-  renderDashboard(dom, state);
+  refreshUi(dom);
   createToast(
     dom.toastContainer,
-    isEditing ? "Transaction updated." : "Transaction added.",
+    isEditing ? t("toast.updated") : t("toast.added"),
   );
 };
 
@@ -206,18 +261,28 @@ const readForm = (dom) => {
 const getFieldMap = (dom) => {
   return {
     title: [dom.titleInput, dom.titleError],
-    amount: [dom.amountInput, dom.amountError],
     category: [dom.categoryInput, dom.categoryError],
     date: [dom.dateInput, dom.dateError],
   };
 };
 
+const applyAmountFieldError = (dom, message) => {
+  if (!message) {
+    return;
+  }
+
+  dom.amountInput.classList.add("is-invalid");
+  dom.amountTypeHint.textContent = message;
+  setAmountHintVariant(dom, "error");
+};
+
 const resetForm = (dom) => {
   dom.form.reset();
   state.editingId = null;
-  dom.submitBtn.textContent = "Add Transaction";
   dom.cancelEditBtn.hidden = true;
   clearFieldErrors(Object.values(getFieldMap(dom)));
+  updateAmountTypeHint(dom);
+  refreshUi(dom);
 };
 
 const beginEditing = (dom, id) => {
@@ -233,10 +298,11 @@ const beginEditing = (dom, id) => {
   dom.dateInput.value = transaction.date;
 
   state.editingId = id;
-  dom.submitBtn.textContent = "Save Changes";
   dom.cancelEditBtn.hidden = false;
   dom.titleInput.focus();
-  createToast(dom.toastContainer, "Editing mode enabled.");
+  updateAmountTypeHint(dom);
+  refreshUi(dom);
+  createToast(dom.toastContainer, t("toast.editing"));
 };
 
 const openDeleteModal = (dom, id) => {
@@ -263,14 +329,14 @@ const confirmDeletion = (dom) => {
   );
 
   persistTransactions(dom);
-  renderDashboard(dom, state);
+  refreshUi(dom);
   closeDeleteModal(dom);
-  createToast(dom.toastContainer, "Transaction deleted.");
+  createToast(dom.toastContainer, t("toast.deleted"));
 };
 
 const exportTransactions = (dom) => {
   if (state.transactions.length === 0) {
-    createToast(dom.toastContainer, "No data to export.", "error");
+    createToast(dom.toastContainer, t("toast.noExportData"), "error");
     return;
   }
 
@@ -286,24 +352,22 @@ const exportTransactions = (dom) => {
   link.remove();
   URL.revokeObjectURL(downloadUrl);
 
-  createToast(dom.toastContainer, "CSV exported.");
+  createToast(dom.toastContainer, t("toast.exported"));
 };
 
 const applyTheme = (dom, theme) => {
   state.theme = theme;
   document.body.classList.toggle("theme-light", theme === "light");
-  dom.themeToggleBtn.textContent =
-    theme === "light" ? "Dark Mode" : "Light Mode";
+  updateDynamicLabels(dom);
   const saved = saveThemeToStorage(window.localStorage, THEME_KEY, theme);
 
   if (!saved) {
     createToast(
       dom.toastContainer,
-      "Theme changed, but the preference could not be saved.",
+      t("toast.themeSaveFailed"),
       "error",
     );
   }
-
 };
 
 const persistTransactions = (dom) => {
@@ -316,12 +380,84 @@ const persistTransactions = (dom) => {
   if (!saved) {
     createToast(
       dom.toastContainer,
-      "Changes were made, but could not be saved locally.",
+      t("toast.transactionsSaveFailed"),
       "error",
     );
   }
 
   return saved;
+};
+
+const refreshUi = (dom) => {
+  translatePage();
+  updateDynamicLabels(dom);
+  renderDashboard(dom, state, getI18nAdapter());
+};
+
+const updateDynamicLabels = (dom) => {
+  dom.themeToggleBtn.textContent =
+    state.theme === "light" ? t("action.darkMode") : t("action.lightMode");
+  dom.languageToggleBtn.textContent = t("action.language");
+  dom.formTitle.textContent = state.editingId ? t("form.editTitle") : t("form.addTitle");
+  dom.submitBtn.textContent = state.editingId
+    ? t("form.saveSubmit")
+    : t("form.addSubmit");
+  updateAmountTypeHint(dom);
+};
+
+const updateAmountTypeHint = (dom) => {
+  const rawValue = dom.amountInput.value.trim();
+  const amount = Number(rawValue);
+
+  dom.amountInput.classList.remove("is-invalid");
+
+  if (!rawValue) {
+    dom.amountTypeHint.textContent = t("form.amountHint");
+    setAmountHintVariant(dom, "neutral");
+    return;
+  }
+
+  if (!Number.isFinite(amount) || amount === 0) {
+    dom.amountTypeHint.textContent = t("form.amountInvalidHint");
+    setAmountHintVariant(dom, "error");
+    return;
+  }
+
+  if (amount > 0) {
+    dom.amountTypeHint.textContent = t("filters.income");
+    setAmountHintVariant(dom, "income");
+    return;
+  }
+
+  dom.amountTypeHint.textContent = t("filters.expense");
+  setAmountHintVariant(dom, "expense");
+};
+
+const setAmountHintVariant = (dom, variant) => {
+  dom.amountTypeHint.classList.remove(
+    "amount-hint--income",
+    "amount-hint--expense",
+    "amount-hint--error",
+    "amount-hint--neutral",
+  );
+  dom.amountTypeHint.classList.add(`amount-hint--${variant}`);
+};
+
+const getI18nAdapter = () => {
+  return {
+    t,
+    locale: getCurrentLocale(),
+    translateCategory,
+  };
+};
+
+const getValidationMessages = () => {
+  return {
+    titleRequired: t("validation.titleRequired"),
+    amountInvalid: t("validation.amountInvalid"),
+    categoryRequired: t("validation.categoryRequired"),
+    dateRequired: t("validation.dateRequired"),
+  };
 };
 
 const renderCookieBanner = (dom) => {
@@ -350,9 +486,7 @@ const handleCookieConsent = (dom, consent) => {
 
   createToast(
     dom.toastContainer,
-    saved
-      ? "Cookie preference saved."
-      : "Cookie preference could not be saved locally.",
+    saved ? t("toast.cookieSaved") : t("toast.cookieSaveFailed"),
     saved ? "success" : "error",
   );
 };

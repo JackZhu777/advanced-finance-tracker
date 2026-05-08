@@ -9,5 +9,8 @@
   },
   "devDependencies": {
     "c8": "^11.0.0"
+  },
+  "dependencies": {
+    "i18next": "^26.0.8"
   }
 }
