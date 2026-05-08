@@ -194,6 +194,40 @@ test("renderDashboard passes i18n through summary list and chart rendering", () 
   assert.ok(context.fillTextCalls.some(([text]) => text === "Money Out"));
 });
 
+test("renderDashboard uses requestAnimationFrame when available", () => {
+  const { canvas, context } = createCanvasMock();
+  const restoreGlobals = mockChartGlobals({
+    chartText: "#123456",
+    chartGrid: "#abcdef",
+    requestAnimationFrame(callback) {
+      callback();
+    },
+  });
+  const dom = {
+    totalIncome: { textContent: "" },
+    totalExpenses: { textContent: "" },
+    totalBalance: { textContent: "" },
+    resultsCount: { textContent: "" },
+    transactionsList: { innerHTML: "" },
+    financeChart: canvas,
+  };
+
+  try {
+    renderDashboard(
+      dom,
+      {
+        transactions,
+        filters: { ...DEFAULT_FILTERS },
+      },
+    );
+  } finally {
+    restoreGlobals();
+  }
+
+  assert.ok(context.fillTextCalls.some(([text]) => text === "Income"));
+  assert.ok(context.fillTextCalls.some(([text]) => text === "Expense"));
+});
+
 test("renderChart uses theme colors and localized chart labels", () => {
   const { canvas, context } = createCanvasMock();
   const restoreGlobals = mockChartGlobals({
@@ -274,9 +308,14 @@ const createCanvasMock = () => {
   };
 };
 
-const mockChartGlobals = ({ chartText, chartGrid }) => {
+const mockChartGlobals = ({
+  chartText,
+  chartGrid,
+  requestAnimationFrame,
+}) => {
   const originalWindow = globalThis.window;
   const originalGetComputedStyle = globalThis.getComputedStyle;
+  const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
 
   globalThis.window = {
     ...originalWindow,
@@ -292,9 +331,11 @@ const mockChartGlobals = ({ chartText, chartGrid }) => {
       return values[property] || "";
     },
   });
+  globalThis.requestAnimationFrame = requestAnimationFrame;
 
   return () => {
     globalThis.window = originalWindow;
     globalThis.getComputedStyle = originalGetComputedStyle;
+    globalThis.requestAnimationFrame = originalRequestAnimationFrame;
   };
 };
