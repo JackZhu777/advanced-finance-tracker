@@ -339,7 +339,9 @@ const exportTransactions = (dom) => {
   }
 
   const csvContent = buildCsvContent(state.transactions);
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const blob = new Blob(["\uFEFF", csvContent], {
+    type: "text/csv;charset=utf-8;",
+  });
   const downloadUrl = URL.createObjectURL(blob);
   const link = document.createElement("a");
 
