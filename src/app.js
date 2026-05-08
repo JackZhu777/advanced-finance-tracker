@@ -46,9 +46,7 @@ export const initializeApp = async () => {
   renderCookieBanner(dom);
   attachEventHandlers(dom);
 
-  setTimeout(() => {
-    dom.skeleton.classList.add("is-hidden");
-  }, 300);
+  dom.skeleton.classList.add("is-hidden");
 };
 
 const getDomReferences = () => {
