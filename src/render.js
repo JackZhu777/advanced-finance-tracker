@@ -29,9 +29,15 @@ const defaultI18n = {
 export const renderDashboard = (dom, state, i18n = defaultI18n) => {
   renderSummary(dom, state.transactions, i18n);
   renderTransactionList(dom, state, i18n);
-  requestAnimationFrame(() => {
-    renderChart(dom.financeChart, state.transactions, i18n);
-  });
+
+  if (typeof requestAnimationFrame === "function") {
+    requestAnimationFrame(() => {
+      renderChart(dom.financeChart, state.transactions, i18n);
+    });
+    return;
+  }
+
+  renderChart(dom.financeChart, state.transactions, i18n);
 };
 
 export const renderSummary = (dom, transactions, i18n = defaultI18n) => {
