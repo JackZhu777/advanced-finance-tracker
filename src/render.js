@@ -156,8 +156,22 @@ const renderTransactionCard = (transaction, i18n) => {
       </div>
       <div>
         <p class="amount ${amountClass}">${escapeHtml(formatCurrency(transaction.amount, i18n.locale))}</p>
-        <button class="edit-btn" data-id="${escapeHtml(transaction.id)}">${escapeHtml(i18n.t("transactions.edit"))}</button>
-        <button class="delete-btn" data-id="${escapeHtml(transaction.id)}">${escapeHtml(i18n.t("transactions.delete"))}</button>
+        <button
+          class="edit-btn"
+          type="button"
+          data-id="${escapeHtml(transaction.id)}"
+          aria-label="${escapeHtml(`${i18n.t("transactions.edit")} transaction: ${transaction.title}`)}"
+        >
+          ${escapeHtml(i18n.t("transactions.edit"))}
+        </button>
+        <button
+          class="delete-btn"
+          type="button"
+          data-id="${escapeHtml(transaction.id)}"
+          aria-label="${escapeHtml(`${i18n.t("transactions.delete")} transaction: ${transaction.title}`)}"
+        >
+          ${escapeHtml(i18n.t("transactions.delete"))}
+        </button>
       </div>
     </div>
   `;

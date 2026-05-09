@@ -67,7 +67,13 @@
           <h3 class="section-title" data-i18n="chart.title">Cash Flow Overview</h3>
           <p class="transactions__meta" data-i18n="chart.meta">Income vs Expense</p>
         </div>
-        <canvas id="financeChart" width="800" height="260"></canvas>
+        <canvas
+          id="financeChart"
+          width="800"
+          height="260"
+          role="img"
+          aria-label="Bar chart comparing total income and total expenses"
+        ></canvas>
       </section>
 
       <section class="grid">
@@ -82,8 +88,9 @@
                 placeholder="e.g., Freelance Payment"
                 data-i18n-placeholder="form.titlePlaceholder"
                 required
+                aria-describedby="titleError"
               />
-              <small class="error" id="titleError"></small>
+              <small class="error" id="titleError" role="alert"></small>
             </label>
 
             <label class="form__field">
@@ -94,15 +101,16 @@
                 placeholder="e.g., 1200 or -45"
                 data-i18n-placeholder="form.amountPlaceholder"
                 required
+                aria-describedby="amountTypeHint"
               />
-              <small class="amount-hint amount-hint--neutral" id="amountTypeHint" data-i18n="form.amountHint">
+              <small class="amount-hint amount-hint--neutral" id="amountTypeHint" data-i18n="form.amountHint" aria-live="polite" aria-atomic="true">
                 Positive for income, negative for expense.
               </small>
             </label>
 
             <label class="form__field">
               <span data-i18n="form.category">Category</span>
-              <select id="categoryInput" required>
+              <select id="categoryInput" required aria-describedby="categoryError">
                 <option value="" disabled selected data-i18n="form.selectCategory">Select category</option>
                 <option value="Salary" data-i18n="category.Salary">Salary</option>
                 <option value="Business" data-i18n="category.Business">Business</option>
@@ -115,13 +123,13 @@
                 <option value="Education" data-i18n="category.Education">Education</option>
                 <option value="Other" data-i18n="category.Other">Other</option>
               </select>
-              <small class="error" id="categoryError"></small>
+              <small class="error" id="categoryError" role="alert"></small>
             </label>
 
             <label class="form__field">
               <span data-i18n="form.date">Date</span>
-              <input id="dateInput" type="date" required />
-              <small class="error" id="dateError"></small>
+              <input id="dateInput" type="date" required aria-describedby="dateError" />
+              <small class="error" id="dateError" role="alert"></small>
             </label>
 
             <div class="form__actions">
@@ -227,7 +235,7 @@
       </div>
     </div>
 
-    <div class="toast-container" id="toastContainer"></div>
+    <div class="toast-container" id="toastContainer" role="status" aria-live="polite" aria-atomic="true"></div>
 
     <div class="cookie-banner" id="cookieBanner" hidden>
       <div>
