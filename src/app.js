@@ -94,6 +94,7 @@ const hydrateState = (dom) => {
 
 const attachEventHandlers = (dom) => {
   let resetHighlightTimer = null;
+  let lastDeleteTrigger = null;
 
   dom.form.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -114,6 +115,7 @@ const attachEventHandlers = (dom) => {
     const emptyAddButton = event.target.closest(".empty-add-btn");
 
     if (deleteButton?.dataset?.id) {
+      lastDeleteTrigger = deleteButton;
       openDeleteModal(dom, deleteButton.dataset.id);
     }
 
@@ -171,12 +173,21 @@ const attachEventHandlers = (dom) => {
   });
 
   dom.cancelDeleteBtn.addEventListener("click", () => {
-    closeDeleteModal(dom);
+    closeDeleteModal(dom, lastDeleteTrigger);
   });
 
   dom.confirmModal.addEventListener("click", (event) => {
     if (event.target.dataset.close) {
-      closeDeleteModal(dom);
+      closeDeleteModal(dom, lastDeleteTrigger);
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (
+      event.key === "Escape" &&
+      dom.confirmModal.classList.contains("is-open")
+    ) {
+      closeDeleteModal(dom, lastDeleteTrigger);
     }
   });
 
@@ -307,12 +318,19 @@ const openDeleteModal = (dom, id) => {
   state.pendingDeleteId = id;
   dom.confirmModal.classList.add("is-open");
   dom.confirmModal.setAttribute("aria-hidden", "false");
+  
+  requestAnimationFrame(() => {
+    dom.cancelDeleteBtn.focus();
+  });
 };
 
-const closeDeleteModal = (dom) => {
+const closeDeleteModal = (dom, returnFocusTo = null) => {
   state.pendingDeleteId = null;
   dom.confirmModal.classList.remove("is-open");
   dom.confirmModal.setAttribute("aria-hidden", "true");
+  if (returnFocusTo && document.contains(returnFocusTo)) {
+    returnFocusTo.focus();
+  }
 };
 
 const confirmDeletion = (dom) => {
